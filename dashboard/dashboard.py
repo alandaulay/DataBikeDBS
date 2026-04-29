@@ -1,31 +1,32 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 import os
+
+sns.set(style="darkgrid")
 
 # ======================
 # CONFIG
 # ======================
 st.set_page_config(
     page_title="Bike Sharing Dashboard",
-    page_icon="🚲",
     layout="wide"
 )
 
 # ======================
-# LOAD DATA (AMAN STREAMLIT CLOUD)
+# LOAD DATA
 # ======================
 @st.cache_data
 def load_data():
     base_path = os.path.dirname(__file__)
-    
-    # coba 2 kemungkinan path
-    possible_paths = [
+
+    paths = [
         os.path.join(base_path, "dashboard", "main_data.csv"),
         os.path.join(base_path, "main_data.csv")
     ]
-    
-    for path in possible_paths:
+
+    for path in paths:
         if os.path.exists(path):
             df = pd.read_csv(path)
             break
@@ -34,16 +35,13 @@ def load_data():
 
     df['dteday'] = pd.to_datetime(df['dteday'])
 
-    # mapping label
     season_map = {1:"Spring",2:"Summer",3:"Fall",4:"Winter"}
     weather_map = {1:"Clear",2:"Mist",3:"Light Rain/Snow",4:"Heavy Rain"}
 
     df['season_label'] = df['season'].map(season_map)
     df['weather_label'] = df['weathersit'].map(weather_map)
-
     df['weekday'] = df['dteday'].dt.day_name()
     df['is_weekend'] = df['weekday'].isin(['Saturday','Sunday'])
-    df['month'] = df['dteday'].dt.to_period('M')
 
     return df
 
@@ -52,120 +50,76 @@ df = load_data()
 # ======================
 # HEADER
 # ======================
-st.title("🚲 Bike Sharing Dashboard")
-st.caption("Analisis penggunaan sepeda berdasarkan musim, cuaca, dan perilaku pengguna")
+st.header("🚲 Bike Sharing Dashboard")
+st.subheader("Analisis Penyewaan Sepeda")
 
 # ======================
 # METRICS
 # ======================
-col1, col2, col3, col4 = st.columns(4)
+col1, col2 = st.columns(2)
 
-col1.metric("Total Rental", f"{df['cnt'].sum():,}")
-col2.metric("Rata-rata Harian", f"{df['cnt'].mean():.0f}")
-col3.metric("Puncak Rental", f"{df['cnt'].max():,}")
-col4.metric("Total Hari", df['dteday'].nunique())
+with col1:
+    st.metric("Total Rental", f"{df['cnt'].sum():,}")
 
-# ======================
-# KPI GROWTH
-# ======================
-monthly = df.groupby('month')['cnt'].sum().reset_index()
-
-if len(monthly) >= 2:
-    growth = ((monthly['cnt'].iloc[-1] - monthly['cnt'].iloc[-2]) / monthly['cnt'].iloc[-2]) * 100
-else:
-    growth = 0
-
-st.metric("📈 Growth Bulanan", f"{growth:.2f}%", delta=f"{growth:.2f}%")
-
-st.markdown("---")
+with col2:
+    st.metric("Rata-rata Harian", f"{df['cnt'].mean():.0f}")
 
 # ======================
-# TABS
+# TREND HARIAN
 # ======================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📈 Tren",
-    "🌤️ Musim",
-    "🌧️ Cuaca",
-    "📊 Weekday vs Weekend"
-])
+st.subheader("Daily Rental Trend")
 
-# ======================
-# TREND
-# ======================
-with tab1:
-    daily = df.groupby('dteday')['cnt'].sum().reset_index()
+daily = df.groupby('dteday')['cnt'].sum().reset_index()
 
-    fig = px.line(
-        daily,
-        x='dteday',
-        y='cnt',
-        markers=True,
-        title="Tren Penyewaan Sepeda"
-    )
+fig, ax = plt.subplots(figsize=(16,6))
+ax.plot(daily['dteday'], daily['cnt'], marker='o')
+ax.set_title("Tren Penyewaan Sepeda")
+ax.set_xlabel("Tanggal")
+ax.set_ylabel("Jumlah Rental")
 
-    fig.update_layout(template="plotly_white")
-
-    st.plotly_chart(fig, use_container_width=True)
-    st.info("Terlihat pola peningkatan pada periode tertentu.")
+st.pyplot(fig)
 
 # ======================
-# SEASON
+# MUSIM
 # ======================
-with tab2:
-    season_avg = df.groupby('season_label')['cnt'].mean().reset_index()
+st.subheader("Rental Berdasarkan Musim")
 
-    fig = px.bar(
-        season_avg,
-        x='season_label',
-        y='cnt',
-        text_auto=True,
-        title="Rata-rata Penyewaan per Musim"
-    )
+season = df.groupby('season_label')['cnt'].mean().reset_index()
 
-    fig.update_layout(template="plotly_white")
+fig, ax = plt.subplots(figsize=(10,6))
+sns.barplot(x='season_label', y='cnt', data=season, ax=ax)
+ax.set_title("Rata-rata Rental per Musim")
 
-    st.plotly_chart(fig, use_container_width=True)
+st.pyplot(fig)
 
 # ======================
-# WEATHER
+# CUACA
 # ======================
-with tab3:
-    weather_avg = df.groupby('weather_label')['cnt'].mean().reset_index()
+st.subheader("Pengaruh Cuaca")
 
-    fig = px.pie(
-        weather_avg,
-        values='cnt',
-        names='weather_label',
-        hole=0.4,
-        title="Distribusi Berdasarkan Cuaca"
-    )
+weather = df.groupby('weather_label')['cnt'].mean().reset_index()
 
-    st.plotly_chart(fig, use_container_width=True)
+fig, ax = plt.subplots(figsize=(10,6))
+sns.barplot(x='weather_label', y='cnt', data=weather, ax=ax)
+ax.set_title("Rata-rata Rental Berdasarkan Cuaca")
 
-    st.warning("Cuaca buruk menurunkan jumlah penyewaan.")
+st.pyplot(fig)
 
 # ======================
 # WEEKDAY VS WEEKEND
 # ======================
-with tab4:
-    compare = df.groupby('is_weekend')['cnt'].mean().reset_index()
-    compare['type'] = compare['is_weekend'].map({True:"Weekend", False:"Weekday"})
+st.subheader("Weekday vs Weekend")
 
-    fig = px.bar(
-        compare,
-        x='type',
-        y='cnt',
-        text_auto=True,
-        color='type',
-        title="Perbandingan Weekday vs Weekend"
-    )
+compare = df.groupby('is_weekend')['cnt'].mean().reset_index()
+compare['type'] = compare['is_weekend'].map({True:"Weekend", False:"Weekday"})
 
-    st.plotly_chart(fig, use_container_width=True)
+fig, ax = plt.subplots(figsize=(8,5))
+sns.barplot(x='type', y='cnt', data=compare, ax=ax)
+ax.set_title("Perbandingan Penggunaan")
 
-    st.info("Weekend cenderung digunakan untuk aktivitas santai.")
+st.pyplot(fig)
 
 # ======================
 # FOOTER
 # ======================
-st.markdown("---")
-st.markdown("Bike Sharing Dashboard • Submission Dicoding")
+st.caption("Bike Sharing Dashboard • Dicoding Style")
