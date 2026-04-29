@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 # ======================
 # CONFIG
@@ -12,24 +13,17 @@ st.set_page_config(
 )
 
 # ======================
-# CUSTOM CSS
-# ======================
-st.markdown("""
-<style>
-.main {background-color: #F9FAFB;}
-h1, h2, h3 {font-family: 'Segoe UI';}
-.footer {text-align:center; color:gray; font-size:14px;}
-</style>
-""", unsafe_allow_html=True)
-
-# ======================
-# LOAD DATA
+# LOAD DATA (SAFE PATH)
 # ======================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dashboard/main_data.csv")
+    base_path = os.path.dirname(__file__)
+    file_path = os.path.join(base_path, "dashboard", "main_data.csv")
+
+    df = pd.read_csv(file_path)
     df['dteday'] = pd.to_datetime(df['dteday'])
 
+    # Mapping
     season_map = {1:"Spring",2:"Summer",3:"Fall",4:"Winter"}
     weather_map = {1:"Clear",2:"Mist",3:"Light Rain/Snow",4:"Heavy Rain"}
 
@@ -46,8 +40,8 @@ def load_data():
 
 try:
     df = load_data()
-except:
-    st.error("Dataset tidak ditemukan.")
+except Exception as e:
+    st.error(f"Error load data: {e}")
     st.stop()
 
 # ======================
@@ -83,7 +77,7 @@ st.title("🚲 Bike Sharing Dashboard")
 st.caption(f"Periode: {start_date} sampai {end_date}")
 
 # ======================
-# METRICS + KPI GROWTH
+# METRICS + GROWTH
 # ======================
 col1, col2, col3, col4 = st.columns(4)
 
@@ -92,7 +86,6 @@ col2.metric("Rata-rata", f"{df_filtered['cnt'].mean():.0f}")
 col3.metric("Tertinggi", f"{df_filtered['cnt'].max():,}")
 col4.metric("Jumlah Hari", df_filtered['dteday'].nunique())
 
-# KPI Growth
 monthly = df_filtered.groupby('month')['cnt'].sum().reset_index()
 
 if len(monthly) >= 2:
@@ -111,72 +104,54 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 Tren",
     "🌤️ Musim",
     "🌧️ Cuaca",
-    "🔥 Heatmap Jam",
+    "🔥 Heatmap",
     "📊 Weekday vs Weekend"
 ])
 
 # ======================
-# TAB 1: TREND
+# TREND
 # ======================
 with tab1:
     daily = df_filtered.groupby('dteday')['cnt'].sum().reset_index()
-
     fig = px.line(daily, x='dteday', y='cnt', markers=True)
-    fig.update_layout(template="plotly_white")
-
     st.plotly_chart(fig, use_container_width=True)
-    st.info("Terlihat pola kenaikan pada waktu tertentu.")
 
 # ======================
-# TAB 2: SEASON
+# SEASON
 # ======================
 with tab2:
     season_avg = df_filtered.groupby('season_label')['cnt'].mean().reset_index()
-
     fig = px.bar(season_avg, x='season_label', y='cnt', text_auto=True)
-    fig.update_layout(template="plotly_white")
-
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================
-# TAB 3: WEATHER
+# WEATHER
 # ======================
 with tab3:
     weather_avg = df_filtered.groupby('weather_label')['cnt'].mean().reset_index()
-
     fig = px.pie(weather_avg, values='cnt', names='weather_label', hole=0.4)
-
     st.plotly_chart(fig, use_container_width=True)
-    st.warning("Cuaca buruk menurunkan jumlah penyewaan.")
 
 # ======================
-# TAB 4: HEATMAP
+# HEATMAP
 # ======================
 with tab4:
-    st.subheader("Heatmap Jam vs Rental")
-
     heatmap = df_filtered.groupby(['hour','weekday'])['cnt'].mean().reset_index()
     pivot = heatmap.pivot(index='hour', columns='weekday', values='cnt')
-
     fig = px.imshow(pivot, aspect="auto")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.info("Jam sibuk: pagi & sore hari kerja.")
-
 # ======================
-# TAB 5: WEEKDAY VS WEEKEND
+# WEEKDAY VS WEEKEND
 # ======================
 with tab5:
     compare = df_filtered.groupby('is_weekend')['cnt'].mean().reset_index()
     compare['type'] = compare['is_weekend'].map({True:"Weekend", False:"Weekday"})
-
     fig = px.bar(compare, x='type', y='cnt', text_auto=True, color='type')
     st.plotly_chart(fig, use_container_width=True)
-
-    st.info("Weekend cenderung digunakan untuk leisure.")
 
 # ======================
 # FOOTER
 # ======================
 st.markdown("---")
-st.markdown("<div class='footer'>Bike Sharing Dashboard • Dicoding Submission</div>", unsafe_allow_html=True)
+st.markdown("Bike Sharing Dashboard • Submission Dicoding")
