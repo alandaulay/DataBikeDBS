@@ -7,24 +7,24 @@ import os
 # CONFIG
 # ======================
 st.set_page_config(
-    page_title="Bike Sharing Dashboard",
+    page_title="Bike Sharing Dashboard Pro",
     page_icon="🚲",
     layout="wide"
 )
 
 # ======================
-# CUSTOM CSS (BIAR BAGUS)
+# STYLE (BIAR KELAS PRO)
 # ======================
 st.markdown("""
 <style>
-.main {
-    background-color: #F8FAFC;
-}
-.block-container {
-    padding-top: 2rem;
-}
-h1 {
-    font-weight: 800;
+.main {background-color: #F9FAFB;}
+.block-container {padding-top: 2rem;}
+h1 {font-weight: 800;}
+.metric-card {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -50,7 +50,7 @@ def load_data():
 
     df['dteday'] = pd.to_datetime(df['dteday'])
 
-    # ✅ MAPPING LABEL (INI YANG DIMINTA REVIEWER)
+    # 🔥 MAPPING LABEL (WAJIB REVIEWER)
     season_map = {
         1: "Spring 🌸",
         2: "Summer ☀️",
@@ -69,7 +69,7 @@ def load_data():
     df['weather_label'] = df['weathersit'].map(weather_map)
 
     df['weekday'] = df['dteday'].dt.day_name()
-    df['is_weekend'] = df['weekday'].isin(['Saturday', 'Sunday'])
+    df['is_weekend'] = df['weekday'].isin(['Saturday','Sunday'])
     df['month'] = df['dteday'].dt.to_period('M')
 
     return df
@@ -77,25 +77,27 @@ def load_data():
 df = load_data()
 
 # ======================
-# SIDEBAR (FILTER MUSIM)
+# SIDEBAR (SCROLLABLE FILTER)
 # ======================
 with st.sidebar:
     st.title("🔎 Filter Data")
 
     selected_season = st.multiselect(
-        "Pilih Musim",
-        options=df['season_label'].unique(),
-        default=df['season_label'].unique()
+        "Pilih Musim (Scroll)",
+        options=sorted(df['season_label'].dropna().unique()),
+        default=sorted(df['season_label'].dropna().unique())
     )
 
-# filter
+    st.markdown("---")
+    st.info("Gunakan filter untuk eksplorasi data secara interaktif.")
+
 df_filtered = df[df['season_label'].isin(selected_season)]
 
 # ======================
 # HEADER
 # ======================
 st.title("🚲 Bike Sharing Dashboard")
-st.caption("Analisis penggunaan sepeda berdasarkan musim dan kondisi lingkungan")
+st.caption("Analisis penggunaan sepeda berbasis musim, cuaca, dan perilaku pengguna")
 
 # ======================
 # METRICS
@@ -104,7 +106,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("Total Rental", f"{df_filtered['cnt'].sum():,}")
 col2.metric("Rata-rata Harian", f"{df_filtered['cnt'].mean():.0f}")
-col3.metric("Maksimum Rental", f"{df_filtered['cnt'].max():,}")
+col3.metric("Puncak Rental", f"{df_filtered['cnt'].max():,}")
 col4.metric("Total Hari", df_filtered['dteday'].nunique())
 
 # ======================
@@ -122,7 +124,14 @@ st.metric("📈 Growth Bulanan", f"{growth:.2f}%", delta=f"{growth:.2f}%")
 st.markdown("---")
 
 # ======================
-# LAYOUT (2 KOLOM BIAR ENAK)
+# HIGHLIGHT MUSIM TERBAIK
+# ======================
+best_season = df_filtered.groupby('season_label')['cnt'].mean().idxmax()
+
+st.success(f"🔥 Musim dengan performa terbaik: **{best_season}**")
+
+# ======================
+# LAYOUT
 # ======================
 col1, col2 = st.columns(2)
 
@@ -134,37 +143,34 @@ with col1:
 
     daily = df_filtered.groupby('dteday')['cnt'].sum().reset_index()
 
-    fig = px.line(
-        daily,
-        x='dteday',
-        y='cnt',
-        markers=True,
-        template="plotly_white"
-    )
-
+    fig = px.line(daily, x='dteday', y='cnt', markers=True)
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+    **Insight:**
+    - Terlihat pola peningkatan pada periode tertentu
+    - Menunjukkan adanya jam atau musim sibuk
+    """)
 
 # ======================
 # MUSIM
 # ======================
 with col2:
-    st.subheader("🌤️ Berdasarkan Musim")
+    st.subheader("🌤️ Analisis Musim")
 
     season_avg = df_filtered.groupby('season_label')['cnt'].mean().reset_index()
 
-    fig = px.bar(
-        season_avg,
-        x='season_label',
-        y='cnt',
-        text_auto=True,
-        color='cnt',
-        color_continuous_scale='Blues'
-    )
-
+    fig = px.bar(season_avg, x='season_label', y='cnt', text_auto=True)
     st.plotly_chart(fig, use_container_width=True)
 
+    st.markdown("""
+    **Insight:**
+    - Musim hangat cenderung memiliki penyewaan lebih tinggi
+    - Musim dingin biasanya mengalami penurunan signifikan
+    """)
+
 # ======================
-# BARIS 2
+# ROW 2
 # ======================
 col3, col4 = st.columns(2)
 
@@ -176,39 +182,50 @@ with col3:
 
     weather_avg = df_filtered.groupby('weather_label')['cnt'].mean().reset_index()
 
-    fig = px.pie(
-        weather_avg,
-        values='cnt',
-        names='weather_label',
-        hole=0.4
-    )
-
+    fig = px.pie(weather_avg, values='cnt', names='weather_label', hole=0.4)
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+    **Insight:**
+    - Cuaca cerah mendominasi penggunaan sepeda
+    - Cuaca buruk menurunkan minat pengguna
+    """)
 
 # ======================
 # WEEKEND VS WEEKDAY
 # ======================
 with col4:
-    st.subheader("📊 Weekday vs Weekend")
+    st.subheader("📊 Perilaku Pengguna")
 
     compare = df_filtered.groupby('is_weekend')['cnt'].mean().reset_index()
     compare['type'] = compare['is_weekend'].map({True:"Weekend", False:"Weekday"})
 
-    fig = px.bar(
-        compare,
-        x='type',
-        y='cnt',
-        text_auto=True,
-        color='type'
-    )
-
+    fig = px.bar(compare, x='type', y='cnt', text_auto=True)
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+    **Insight:**
+    - Weekday digunakan untuk commuting
+    - Weekend lebih ke aktivitas santai
+    """)
+
+# ======================
+# KESIMPULAN
+# ======================
+st.markdown("---")
+st.subheader("📌 Kesimpulan")
+
+st.markdown(f"""
+- Penggunaan sepeda sangat dipengaruhi oleh **musim dan cuaca**
+- **{best_season}** menjadi periode dengan performa tertinggi
+- Aktivitas pengguna terbagi antara:
+  - **Weekday → transportasi**
+  - **Weekend → rekreasi**
+- Cuaca buruk menjadi faktor utama penurunan penggunaan
+""")
 
 # ======================
 # FOOTER
 # ======================
 st.markdown("---")
-st.markdown(
-    "<div style='text-align:center;color:gray'>Bike Sharing Dashboard • Advanced Submission</div>",
-    unsafe_allow_html=True
-)
+st.markdown("<div style='text-align:center;color:gray'>Bike Sharing Dashboard • Advanced Level Submission</div>", unsafe_allow_html=True)
