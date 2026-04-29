@@ -50,7 +50,7 @@ def load_data():
 
     df['dteday'] = pd.to_datetime(df['dteday'])
 
-    # 🔥 MAPPING LABEL (WAJIB REVIEWER)
+    # 
     season_map = {
         1: "Spring 🌸",
         2: "Summer ☀️",
@@ -80,7 +80,7 @@ df = load_data()
 # SIDEBAR (SCROLLABLE FILTER)
 # ======================
 with st.sidebar:
-    st.title("🔎 Filter Data")
+    st.title(" Filter Data")
 
     selected_season = st.multiselect(
         "Pilih Musim (Scroll)",
@@ -128,7 +128,7 @@ st.markdown("---")
 # ======================
 best_season = df_filtered.groupby('season_label')['cnt'].mean().idxmax()
 
-st.success(f"🔥 Musim dengan performa terbaik: **{best_season}**")
+st.success(f" Musim dengan performa terbaik: **{best_season}**")
 
 # ======================
 # LAYOUT
@@ -213,7 +213,7 @@ with col4:
 # KESIMPULAN
 # ======================
 st.markdown("---")
-st.subheader("📌 Kesimpulan")
+st.subheader(" Kesimpulan")
 
 st.markdown(f"""
 - Penggunaan sepeda sangat dipengaruhi oleh **musim dan cuaca**
