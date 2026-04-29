@@ -16,7 +16,7 @@ sns.set_style("whitegrid")
 # ======================
 # LOAD DATA
 # ======================
-df = pd.read_csv("main_data.csv")
+df = pd.read_csv("dashboard/main_data.csv")
 df['dteday'] = pd.to_datetime(df['dteday'])
 
 # ======================
